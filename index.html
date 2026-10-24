@@ -62,6 +62,12 @@ button:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 .emoji { font-size: 4.5rem; animation: float 2s ease-in-out infinite; }
 @keyframes float { 50% { transform: translateY(-10px) rotate(5deg); } }
 .big { font-size: 2.2rem; font-weight: 800; margin: 4px 0; }
+.report { margin: 16px 0; padding: 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--bg); overflow-wrap: anywhere; }
+.report h3 { margin: 0 0 8px; }
+.report p { margin: 8px 0; }
+.manual-copy { margin-top: 12px; }
+.manual-copy textarea { width: 100%; min-height: 10em; font: inherit; color: var(--text); background: var(--card); border: 2px solid var(--border); border-radius: 8px; }
+.manual-copy textarea:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 [hidden] { display: none !important; }
 .confetti { position: fixed; top: -20px; font-size: 1.6rem; pointer-events: none; animation: fall linear forwards; }
 @keyframes fall { to { transform: translateY(110vh) rotate(540deg); opacity: .7; } }
@@ -92,6 +98,17 @@ button:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
     <h2 id="rtitle" tabindex="-1"></h2>
     <div class="big" id="rscore"></div>
     <p id="rmsg"></p>
+    <div class="report" aria-labelledby="report-title">
+      <h3 id="report-title">미션 리포트</h3>
+      <p id="report-summary"></p>
+      <p id="report-slowest"></p>
+    </div>
+    <button class="next" id="copy">미션 리포트 복사</button>
+    <p id="copy-status" role="status" aria-live="polite"></p>
+    <div class="manual-copy" id="manual-copy" hidden>
+      <label for="report-text">복사할 미션 리포트 (Ctrl+C 또는 ⌘C)</label>
+      <textarea id="report-text" readonly></textarea>
+    </div>
     <button class="next" id="again">🔄 다시 도전하기</button>
   </section>
 </main>
@@ -110,14 +127,14 @@ const QUESTIONS = [
   { q: "하루가 1년보다 긴 행성은?", a: ["금성", "목성", "화성", "지구"], c: 0, e: "금성은 자전 주기(243일)가 공전 주기(225일)보다 깁니다." }
 ];
 const RESULTS = [
-  [10, "🏆🚀🌟", "우주 사령관!", "완벽해요! 당장 우주선에 탑승하세요."],
-  [8, "🎉🛰️", "베테랑 우주비행사", "훌륭합니다! 거의 모든 걸 알고 계시네요."],
-  [6, "😎🌙", "유망한 탐사대원", "좋은 실력이에요. 조금만 더 공부해 볼까요?"],
-  [3, "🤔🪐", "견습 우주인", "아직은 훈련이 필요해요. 다시 도전해 보세요!"],
+  [100, "🏆🚀🌟", "우주 사령관!", "완벽해요! 당장 우주선에 탑승하세요."],
+  [80, "🎉🛰️", "베테랑 우주비행사", "훌륭합니다! 거의 모든 걸 알고 계시네요."],
+  [60, "😎🌙", "유망한 탐사대원", "좋은 실력이에요. 조금만 더 공부해 볼까요?"],
+  [30, "🤔🪐", "견습 우주인", "아직은 훈련이 필요해요. 다시 도전해 보세요!"],
   [0, "☄️😵", "지구 관제센터 신입", "괜찮아요, 모든 탐사는 첫걸음부터 시작합니다!"]
 ];
 const $ = id => document.getElementById(id);
-let i, score, answered, order;
+let i, score, answered, order, questionStarted, durations, reportText;
 
 function shuffle(arr) {
   for (let k = arr.length - 1; k > 0; k--) {
@@ -128,6 +145,11 @@ function shuffle(arr) {
 }
 function start() {
   i = 0; score = 0;
+  durations = []; reportText = "";
+  $("copy-status").textContent = "";
+  $("manual-copy").hidden = true;
+  $("report-text").value = "";
+  $("copy").disabled = false;
   order = shuffle([...QUESTIONS]);
   $("result").hidden = true; $("quiz").hidden = false;
   render();
@@ -152,6 +174,7 @@ function render() {
   });
   setProgress(i);
   $("q").focus();
+  questionStarted = performance.now();
 }
 function setProgress(v) {
   $("pfill").style.width = (v / QUESTIONS.length * 100) + "%";
@@ -161,6 +184,7 @@ function setProgress(v) {
 function choose(n) {
   if (answered) return;
   answered = true;
+  durations[i] = performance.now() - questionStarted;
   const d = order[i], btns = [...document.querySelectorAll(".opt")];
   btns.forEach(b => b.disabled = true);
   btns[d.c].classList.add("correct");
@@ -186,13 +210,40 @@ function next() {
 }
 function finish() {
   $("quiz").hidden = true; $("result").hidden = false;
-  const r = RESULTS.find(x => score >= x[0]);
+  const accuracy = score / QUESTIONS.length * 100;
+  const r = RESULTS.find(x => accuracy >= x[0]);
   $("remoji").textContent = r[1];
   $("rtitle").textContent = r[2];
   $("rscore").textContent = `${score} / ${QUESTIONS.length}`;
   $("rmsg").textContent = r[3];
+  const slowest = durations.reduce((best, duration, index) => duration > durations[best] ? index : best, 0);
+  $("report-summary").textContent = `점수 ${score} / ${QUESTIONS.length} · 정답률 ${Math.round(accuracy)}% · 등급: ${r[2]}`;
+  $("report-slowest").textContent = `가장 오래 걸린 문항: ${slowest + 1}번 「${order[slowest].q}」 · ${(durations[slowest] / 1000).toFixed(1)}초`;
+  reportText = `우주 탐사 퀴즈 — 미션 리포트\n${$("report-summary").textContent}\n${$("report-slowest").textContent}`;
   if (score >= 6) burst(30);
   $("rtitle").focus();
+}
+async function copyReport() {
+  const run = order;
+  $("copy").disabled = true;
+  $("copy-status").textContent = "";
+  try {
+    await navigator.clipboard.writeText(reportText);
+    if (run !== order) return;
+    $("manual-copy").hidden = true;
+    $("copy-status").textContent = "미션 리포트를 복사했어요!";
+    $("copy").disabled = false;
+    $("copy").focus();
+  } catch {
+    if (run !== order) return;
+    $("manual-copy").hidden = false;
+    $("report-text").value = reportText;
+    $("report-text").focus();
+    $("report-text").select();
+    $("copy-status").textContent = "자동 복사를 사용할 수 없어요. 선택된 리포트를 Ctrl+C 또는 ⌘C로 복사해 주세요.";
+  } finally {
+    if (run === order) $("copy").disabled = false;
+  }
 }
 function burst(k) {
   if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
@@ -209,6 +260,7 @@ function burst(k) {
 }
 $("next").addEventListener("click", next);
 $("again").addEventListener("click", start);
+$("copy").addEventListener("click", copyReport);
 document.addEventListener("keydown", e => {
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   if (!$("quiz").hidden && !answered && /^[1-4]$/.test(e.key)) choose(+e.key - 1);
