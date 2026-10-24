@@ -62,6 +62,15 @@ button:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 .emoji { font-size: 4.5rem; animation: float 2s ease-in-out infinite; }
 @keyframes float { 50% { transform: translateY(-10px) rotate(5deg); } }
 .big { font-size: 2.2rem; font-weight: 800; margin: 4px 0; }
+.review { text-align: left; margin-top: 20px; }
+.review h3 { font-size: 1.1rem; margin: 0 0 8px; }
+.rvlist { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+.rvlist li { border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; background: var(--bg); }
+.rvlist .rq { font-weight: 700; margin: 0 0 6px; }
+.rvlist p { margin: 2px 0; }
+.rvlist .mine { color: var(--bad); }
+.rvlist .right { color: var(--ok); }
+.rvlist .why { color: var(--muted); }
 [hidden] { display: none !important; }
 .confetti { position: fixed; top: -20px; font-size: 1.6rem; pointer-events: none; animation: fall linear forwards; }
 @keyframes fall { to { transform: translateY(110vh) rotate(540deg); opacity: .7; } }
@@ -92,6 +101,11 @@ button:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
     <h2 id="rtitle" tabindex="-1"></h2>
     <div class="big" id="rscore"></div>
     <p id="rmsg"></p>
+    <section class="review" aria-labelledby="rvtitle">
+      <h3 id="rvtitle">오답 복습</h3>
+      <p id="rvperfect" hidden>🎉 모든 문제를 맞혔어요! 복습할 오답이 없습니다.</p>
+      <ol id="rvlist" class="rvlist"></ol>
+    </section>
     <button class="next" id="again">🔄 다시 도전하기</button>
   </section>
 </main>
@@ -117,10 +131,10 @@ const RESULTS = [
   [0, "☄️😵", "지구 관제센터 신입", "괜찮아요, 모든 탐사는 첫걸음부터 시작합니다!"]
 ];
 const $ = id => document.getElementById(id);
-let i, score, answered;
+let i, score, answered, wrongs;
 
 function start() {
-  i = 0; score = 0;
+  i = 0; score = 0; wrongs = [];
   $("result").hidden = true; $("quiz").hidden = false;
   render();
 }
@@ -164,6 +178,7 @@ function choose(n) {
     burst(8);
   } else {
     btns[n].classList.add("wrong");
+    wrongs.push({ d, n });
     fb.className = "fb bad"; fb.textContent = `❌ 오답! 정답: ${d.a[d.c]}. ${d.e}`;
   }
   $("score").textContent = `⭐ 점수: ${score}`;
@@ -183,8 +198,21 @@ function finish() {
   $("rtitle").textContent = r[2];
   $("rscore").textContent = `${score} / ${QUESTIONS.length}`;
   $("rmsg").textContent = r[3];
+  renderReview();
   if (score >= 6) burst(30);
   $("rtitle").focus();
+}
+function renderReview() {
+  const ol = $("rvlist"); ol.innerHTML = "";
+  $("rvperfect").hidden = wrongs.length > 0;
+  wrongs.forEach(({ d, n }) => {
+    const li = document.createElement("li");
+    [["rq", d.q], ["mine", `❌ 내가 고른 답: ${d.a[n]}`], ["right", `✅ 정답: ${d.a[d.c]}`], ["why", d.e]].forEach(([c, t]) => {
+      const p = document.createElement("p");
+      p.className = c; p.textContent = t; li.append(p);
+    });
+    ol.append(li);
+  });
 }
 function burst(k) {
   if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
