@@ -117,16 +117,24 @@ const RESULTS = [
   [0, "☄️😵", "지구 관제센터 신입", "괜찮아요, 모든 탐사는 첫걸음부터 시작합니다!"]
 ];
 const $ = id => document.getElementById(id);
-let i, score, answered;
+let i, score, answered, order;
 
+function shuffle(arr) {
+  for (let k = arr.length - 1; k > 0; k--) {
+    const j = Math.floor(Math.random() * (k + 1));
+    [arr[k], arr[j]] = [arr[j], arr[k]];
+  }
+  return arr;
+}
 function start() {
   i = 0; score = 0;
+  order = shuffle([...QUESTIONS]);
   $("result").hidden = true; $("quiz").hidden = false;
   render();
 }
 function render() {
   answered = false;
-  const d = QUESTIONS[i];
+  const d = order[i];
   $("count").textContent = `문제 ${i + 1} / ${QUESTIONS.length}`;
   $("score").textContent = `⭐ 점수: ${score}`;
   $("q").textContent = d.q;
@@ -153,7 +161,7 @@ function setProgress(v) {
 function choose(n) {
   if (answered) return;
   answered = true;
-  const d = QUESTIONS[i], btns = [...document.querySelectorAll(".opt")];
+  const d = order[i], btns = [...document.querySelectorAll(".opt")];
   btns.forEach(b => b.disabled = true);
   btns[d.c].classList.add("correct");
   const fb = $("fb");
