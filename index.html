@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>우주 탐사 퀴즈</title>
+<style>
+:root {
+  --bg: #eef3ff; --bg2: #dbe6ff; --card: #ffffff; --text: #14183a; --muted: #4a5280;
+  --accent: #4f46e5; --accent-text: #ffffff; --border: #b8c2ee;
+  --ok: #15803d; --ok-bg: #dcfce7; --bad: #b91c1c; --bad-bg: #fee2e2;
+  --focus: #c2410c; --shadow: 0 10px 30px rgba(40, 50, 120, .18);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #070a1f; --bg2: #151a4a; --card: #11163a; --text: #eef0ff; --muted: #aab2e6;
+    --accent: #8b9cff; --accent-text: #0a0e2c; --border: #323b88;
+    --ok: #4ade80; --ok-bg: #0f3a22; --bad: #fca5a5; --bad-bg: #4a1519;
+    --focus: #fbbf24; --shadow: 0 10px 30px rgba(0, 0, 0, .6);
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 16px;
+  font-family: system-ui, -apple-system, "Segoe UI", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  color: var(--text); line-height: 1.5;
+  background: radial-gradient(circle at 20% 10%, var(--bg2), var(--bg) 60%);
+}
+main {
+  width: 100%; max-width: 640px; background: var(--card); border: 1px solid var(--border);
+  border-radius: 20px; padding: 24px; box-shadow: var(--shadow);
+}
+h1 { font-size: 1.5rem; margin: 0 0 4px; }
+.sub { color: var(--muted); margin: 0 0 16px; }
+.top { display: flex; justify-content: space-between; font-weight: 600; margin-bottom: 8px; }
+.bar { height: 12px; background: var(--bg2); border-radius: 99px; overflow: hidden; border: 1px solid var(--border); }
+.bar > div { height: 100%; width: 0; background: linear-gradient(90deg, #6366f1, #ec4899, #f59e0b); transition: width .5s ease; }
+h2 { font-size: 1.25rem; margin: 20px 0 12px; }
+h2:focus { outline: none; }
+.opts { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+button {
+  font: inherit; color: inherit; cursor: pointer; width: 100%; text-align: left;
+  padding: 12px 14px; border-radius: 12px; border: 2px solid var(--border); background: var(--card);
+  transition: transform .15s, background .2s, border-color .2s;
+}
+.opt { display: flex; gap: 10px; align-items: center; }
+.opt kbd { flex: none; min-width: 1.8em; text-align: center; border: 1px solid var(--border); border-radius: 6px; padding: 0 6px; font-size: .85rem; color: var(--muted); }
+.opt:hover:not(:disabled) { border-color: var(--accent); transform: translateX(4px); }
+button:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.opt:disabled { cursor: default; color: inherit; }
+.opt.correct { background: var(--ok-bg); border-color: var(--ok); color: var(--ok); animation: pop .5s; }
+.opt.wrong { background: var(--bad-bg); border-color: var(--bad); color: var(--bad); animation: shake .5s; }
+@keyframes shake { 0%,100% { transform: translateX(0); } 20%,60% { transform: translateX(-10px); } 40%,80% { transform: translateX(10px); } }
+@keyframes pop { 0% { transform: scale(1); } 50% { transform: scale(1.04); box-shadow: 0 0 20px var(--ok); } 100% { transform: scale(1); } }
+.fb { min-height: 3em; margin: 14px 0 0; font-weight: 600; }
+.fb.ok { color: var(--ok); } .fb.bad { color: var(--bad); }
+.next { margin-top: 12px; text-align: center; background: var(--accent); color: var(--accent-text); border-color: var(--accent); font-weight: 700; }
+.next:hover { filter: brightness(1.1); }
+.score.bump { animation: pop .4s; }
+.result { text-align: center; }
+.emoji { font-size: 4.5rem; animation: float 2s ease-in-out infinite; }
+@keyframes float { 50% { transform: translateY(-10px) rotate(5deg); } }
+.big { font-size: 2.2rem; font-weight: 800; margin: 4px 0; }
+[hidden] { display: none !important; }
+.confetti { position: fixed; top: -20px; font-size: 1.6rem; pointer-events: none; animation: fall linear forwards; }
+@keyframes fall { to { transform: translateY(110vh) rotate(540deg); opacity: .7; } }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+</style>
+</head>
+<body>
+<main>
+  <h1>🚀 우주 탐사 퀴즈</h1>
+  <p class="sub">숫자 키(1–4)로 답을 고르고, Enter로 다음 문제로 이동하세요.</p>
+
+  <section id="quiz">
+    <div class="top">
+      <span id="count">문제 1 / 10</span>
+      <span class="score" id="score">⭐ 점수: 0</span>
+    </div>
+    <div class="bar" role="progressbar" id="pbar" aria-label="진행률" aria-valuemin="0" aria-valuemax="10" aria-valuenow="0"><div id="pfill"></div></div>
+    <h2 id="q" tabindex="-1"></h2>
+    <ul class="opts" id="opts"></ul>
+    <p class="fb" id="fb" role="status" aria-live="polite"></p>
+    <button class="next" id="next" hidden></button>
+  </section>
+
+  <section id="result" class="result" hidden>
+    <div class="emoji" id="remoji" aria-hidden="true"></div>
+    <h2 id="rtitle" tabindex="-1"></h2>
+    <div class="big" id="rscore"></div>
+    <p id="rmsg"></p>
+    <button class="next" id="again">🔄 다시 도전하기</button>
+  </section>
+</main>
+
+<script>
+const QUESTIONS = [
+  { q: "태양계에서 가장 큰 행성은?", a: ["화성", "목성", "토성", "해왕성"], c: 1, e: "목성은 지구 약 1,300개가 들어갈 만큼 거대합니다." },
+  { q: "달에 처음 발을 디딘 사람은?", a: ["유리 가가린", "버즈 올드린", "닐 암스트롱", "존 글렌"], c: 2, e: "1969년 아폴로 11호의 닐 암스트롱입니다." },
+  { q: "'붉은 행성'이라 불리는 행성은?", a: ["화성", "금성", "수성", "천왕성"], c: 0, e: "산화철(녹) 때문에 붉게 보입니다." },
+  { q: "태양에서 가장 가까운 행성은?", a: ["금성", "지구", "수성", "화성"], c: 2, e: "수성은 태양을 약 88일에 한 바퀴 돕니다." },
+  { q: "우리 은하의 이름은?", a: ["안드로메다", "은하수", "마젤란", "삼각형자리"], c: 1, e: "우리 은하는 '은하수(Milky Way)'입니다." },
+  { q: "빛이 태양에서 지구까지 오는 데 걸리는 시간은 약?", a: ["8분", "8초", "8시간", "8일"], c: 0, e: "약 8분 20초가 걸립니다." },
+  { q: "최초의 인공위성은?", a: ["보이저 1호", "스푸트니크 1호", "허블", "아폴로 1호"], c: 1, e: "1957년 소련이 발사한 스푸트니크 1호입니다." },
+  { q: "토성의 가장 큰 특징은?", a: ["거대한 붉은 점", "아름다운 고리", "역행 자전", "딱딱한 표면"], c: 1, e: "얼음과 암석 조각으로 이루어진 고리가 있습니다." },
+  { q: "대한민국의 달 궤도선 이름은?", a: ["나로", "누리", "다누리", "아리랑"], c: 2, e: "2022년 발사된 다누리(KPLO)입니다." },
+  { q: "하루가 1년보다 긴 행성은?", a: ["금성", "목성", "화성", "지구"], c: 0, e: "금성은 자전 주기(243일)가 공전 주기(225일)보다 깁니다." }
+];
+const RESULTS = [
+  [10, "🏆🚀🌟", "우주 사령관!", "완벽해요! 당장 우주선에 탑승하세요."],
+  [8, "🎉🛰️", "베테랑 우주비행사", "훌륭합니다! 거의 모든 걸 알고 계시네요."],
+  [6, "😎🌙", "유망한 탐사대원", "좋은 실력이에요. 조금만 더 공부해 볼까요?"],
+  [3, "🤔🪐", "견습 우주인", "아직은 훈련이 필요해요. 다시 도전해 보세요!"],
+  [0, "☄️😵", "지구 관제센터 신입", "괜찮아요, 모든 탐사는 첫걸음부터 시작합니다!"]
+];
+const $ = id => document.getElementById(id);
+let i, score, answered;
+
+function start() {
+  i = 0; score = 0;
+  $("result").hidden = true; $("quiz").hidden = false;
+  render();
+}
+function render() {
+  answered = false;
+  const d = QUESTIONS[i];
+  $("count").textContent = `문제 ${i + 1} / ${QUESTIONS.length}`;
+  $("score").textContent = `⭐ 점수: ${score}`;
+  $("q").textContent = d.q;
+  $("fb").textContent = ""; $("fb").className = "fb";
+  $("next").hidden = true;
+  const ul = $("opts"); ul.innerHTML = "";
+  d.a.forEach((t, n) => {
+    const li = document.createElement("li");
+    const b = document.createElement("button");
+    b.className = "opt";
+    b.innerHTML = `<kbd aria-hidden="true">${n + 1}</kbd><span></span>`;
+    b.lastChild.textContent = t;
+    b.addEventListener("click", () => choose(n));
+    li.append(b); ul.append(li);
+  });
+  setProgress(i);
+  $("q").focus();
+}
+function setProgress(v) {
+  $("pfill").style.width = (v / QUESTIONS.length * 100) + "%";
+  $("pbar").setAttribute("aria-valuenow", v);
+  $("pbar").setAttribute("aria-valuetext", `${QUESTIONS.length}문제 중 ${v}문제 완료`);
+}
+function choose(n) {
+  if (answered) return;
+  answered = true;
+  const d = QUESTIONS[i], btns = [...document.querySelectorAll(".opt")];
+  btns.forEach(b => b.disabled = true);
+  btns[d.c].classList.add("correct");
+  const fb = $("fb");
+  if (n === d.c) {
+    score++;
+    fb.className = "fb ok"; fb.textContent = `✅ 정답! ${d.e}`;
+    $("score").classList.remove("bump"); void $("score").offsetWidth; $("score").classList.add("bump");
+    burst(8);
+  } else {
+    btns[n].classList.add("wrong");
+    fb.className = "fb bad"; fb.textContent = `❌ 오답! 정답: ${d.a[d.c]}. ${d.e}`;
+  }
+  $("score").textContent = `⭐ 점수: ${score}`;
+  setProgress(i + 1);
+  const nx = $("next");
+  nx.textContent = i === QUESTIONS.length - 1 ? "결과 보기 🎯" : "다음 문제 ➡️";
+  nx.hidden = false; nx.focus();
+}
+function next() {
+  if (i === QUESTIONS.length - 1) return finish();
+  i++; render();
+}
+function finish() {
+  $("quiz").hidden = true; $("result").hidden = false;
+  const r = RESULTS.find(x => score >= x[0]);
+  $("remoji").textContent = r[1];
+  $("rtitle").textContent = r[2];
+  $("rscore").textContent = `${score} / ${QUESTIONS.length}`;
+  $("rmsg").textContent = r[3];
+  if (score >= 6) burst(30);
+  $("rtitle").focus();
+}
+function burst(k) {
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const set = ["🎉", "✨", "⭐", "🚀", "🌟"];
+  for (let n = 0; n < k; n++) {
+    const s = document.createElement("span");
+    s.className = "confetti"; s.setAttribute("aria-hidden", "true");
+    s.textContent = set[n % set.length];
+    s.style.left = Math.random() * 100 + "vw";
+    s.style.animationDuration = 1.5 + Math.random() * 1.5 + "s";
+    document.body.append(s);
+    setTimeout(() => s.remove(), 3200);
+  }
+}
+$("next").addEventListener("click", next);
+$("again").addEventListener("click", start);
+document.addEventListener("keydown", e => {
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  if (!$("quiz").hidden && !answered && /^[1-4]$/.test(e.key)) choose(+e.key - 1);
+});
+start();
+</script>
+</body>
+</html>
